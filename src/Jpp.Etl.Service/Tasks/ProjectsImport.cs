@@ -34,14 +34,14 @@ namespace Jpp.Etl.Service.Tasks
             this.tokenSource = cancellationTokenSource;
         }
 
-        public async Task Start()
+        public async Task StartAsync()
         {
             var intervalMinutes = this.GetIntervalMinutes();
 
             await Task.Run(
                 async () =>
                 {
-                    var lastDateTime = await this.GetLastImportDateTime();
+                    var lastDateTime = await this.GetLastImportDateTimeAsync();
 
                     while (true)
                     {
@@ -55,7 +55,7 @@ namespace Jpp.Etl.Service.Tasks
                         {
                             Program.WriteMessage($"Projects found : {projects.Count}. Attempting to import.", MessageType.Warn);
 
-                            var result = await this.ImportProjects(projects, started);
+                            var result = await this.ImportProjectsAsync(projects, started);
                             if (result)
                             {
                                 lastDateTime = started;
@@ -91,11 +91,11 @@ namespace Jpp.Etl.Service.Tasks
             return intervalMinutes;
         }
 
-        private async Task<DateTime> GetLastImportDateTime()
+        private async Task<DateTime> GetLastImportDateTimeAsync()
         {
             try
             {
-                var client = await this.CreateHttpClient();
+                var client = await this.CreateHttpClientAsync();
                 var builder = this.GetLastImportUriBuilder();
 
                 var message = new HttpRequestMessage
@@ -115,7 +115,7 @@ namespace Jpp.Etl.Service.Tasks
             }
         }
 
-        private async Task<bool> ImportProjects(IEnumerable<Project> projects, DateTimeOffset startedDateTime)
+        private async Task<bool> ImportProjectsAsync(IEnumerable<Project> projects, DateTimeOffset startedDateTime)
         {
             HttpClient client;
             UriBuilder builder;
@@ -123,7 +123,7 @@ namespace Jpp.Etl.Service.Tasks
 
             try
             {
-                client = await this.CreateHttpClient();
+                client = await this.CreateHttpClientAsync();
                 builder = this.GetImportUriBuilder(startedDateTime);
                 chunks = Program.SplitList(projects.ToList(), 30);
             }
@@ -171,7 +171,7 @@ namespace Jpp.Etl.Service.Tasks
             return succeed;
         }
 
-        private async Task<HttpClient> CreateHttpClient()
+        private async Task<HttpClient> CreateHttpClientAsync()
         {
             var client = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls11 | SecurityProtocolType.Tls;

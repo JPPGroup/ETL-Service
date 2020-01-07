@@ -9,7 +9,7 @@
             Schedule Task.
             </summary>
         </member>
-        <member name="M:Jpp.Etl.Service.IScheduledTask.Start">
+        <member name="M:Jpp.Etl.Service.IScheduledTask.StartAsync">
             <summary>
             Start the task.
             </summary>

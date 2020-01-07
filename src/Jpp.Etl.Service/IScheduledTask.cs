@@ -15,6 +15,6 @@ namespace Jpp.Etl.Service
         /// Start the task.
         /// </summary>
         /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
-        Task Start();
+        Task StartAsync();
     }
 }

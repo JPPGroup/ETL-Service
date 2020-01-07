@@ -28,7 +28,7 @@ namespace Jpp.Etl.Service
         private static readonly IUnityContainer Container = new UnityContainer();
         private static Options options = new Options();
 
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             try
             {
@@ -49,12 +49,10 @@ namespace Jpp.Etl.Service
                     .SelectMany(x => x.GetTypes())
                     .Where(x => typeof(IScheduledTask).IsAssignableFrom(x) && !x.IsInterface && !x.IsAbstract);
 
-                Parallel.ForEach(types, StartTask);
-                /* TODO: Wrong use of PTL.
-                 * This is not guarenteed to be on different threads, a regular foreach loop is the better choice here.
-                 * Also, dont use PTL on ui threads(yes I know this a console app!)
-                 * General points here https://docs.microsoft.com/en-us/dotnet/standard/parallel-programming/potential-pitfalls-in-data-and-task-parallelism?redirectedfrom=MSDN
-                 */
+                foreach (var task in types)
+                {
+                    await StartTaskAsync(task);
+                }
             }
             catch (Exception e)
             {
@@ -95,17 +93,14 @@ namespace Jpp.Etl.Service
                 _ => ConsoleColor.White
             };
 
-        private static async void StartTask(Type type)
+        private static async Task StartTaskAsync(Type type)
         {
             try
             {
                 WriteMessage($"Starting {type.FullName}.");
 
                 var instance = (IScheduledTask)Container.Resolve(type);
-                /* TODO: This shouldnt be awaited.
-                 * You dont care when it completes and its blocking
-                 */
-                await instance.Start();
+                await instance.StartAsync();
             }
             catch (OperationCanceledException)
             {
