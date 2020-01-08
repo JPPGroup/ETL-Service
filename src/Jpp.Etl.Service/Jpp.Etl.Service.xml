@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Jpp.Etl.Service</name>
+    </assembly>
+    <members>
+        <member name="T:Jpp.Etl.Service.IScheduledTask">
+            <summary>
+            Schedule Task.
+            </summary>
+        </member>
+        <member name="M:Jpp.Etl.Service.IScheduledTask.StartAsync">
+            <summary>
+            Start the task.
+            </summary>
+            <returns>A <see cref="T:System.Threading.Tasks.Task"/> representing the result of the asynchronous operation.</returns>
+        </member>
+    </members>
+</doc>

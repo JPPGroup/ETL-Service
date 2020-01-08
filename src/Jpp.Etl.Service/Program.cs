@@ -1,28 +1,38 @@
-﻿using CommandLine;
+﻿// <copyright file="Program.cs" company="JPP Consulting">
+// Copyright (c) JPP Consulting. All rights reserved.
+// </copyright>
+
 using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Unity;
 using Unity.Lifetime;
 
 namespace Jpp.Etl.Service
 {
+    internal enum MessageType
+    {
+        Info,
+        Error,
+        Success,
+        Warn,
+    }
+
     internal class Program
     {
         private static readonly IUnityContainer Container = new UnityContainer();
-        private static Options _options = new Options();
+        private static Options options = new Options();
 
-        public enum MessageType { Info, Error, Success, Warn }
-
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             try
             {
-                Parser.Default.ParseArguments<Options>(args).WithParsed(o => { _options = o; });
+                Parser.Default.ParseArguments<Options>(args).WithParsed(o => { options = o; });
 
                 Container.RegisterInstance(CreateConfiguration(), new ContainerControlledLifetimeManager());
 
@@ -39,12 +49,10 @@ namespace Jpp.Etl.Service
                     .SelectMany(x => x.GetTypes())
                     .Where(x => typeof(IScheduledTask).IsAssignableFrom(x) && !x.IsInterface && !x.IsAbstract);
 
-                Parallel.ForEach(types, StartTask);
-                /* TODO: Wrong use of PTL.
-                 * This is not guarenteed to be on different threads, a regular foreach loop is the better choice here.
-                 * Also, dont use PTL on ui threads(yes I know this a console app!)
-                 * General points here https://docs.microsoft.com/en-us/dotnet/standard/parallel-programming/potential-pitfalls-in-data-and-task-parallelism?redirectedfrom=MSDN
-                 */
+                foreach (var task in types)
+                {
+                    await StartTaskAsync(task);
+                }
             }
             catch (Exception e)
             {
@@ -58,11 +66,22 @@ namespace Jpp.Etl.Service
 
         public static void WriteMessage(string message, MessageType type = MessageType.Info)
         {
-            if (!_options.Verbose) return;
+            if (!options.Verbose)
+            {
+                return;
+            }
 
             Console.ForegroundColor = GetTypeConsoleColor(type);
             Console.WriteLine(message);
             Console.ResetColor();
+        }
+
+        public static IEnumerable<List<T>> SplitList<T>(List<T> list, int nSize)
+        {
+            for (var i = 0; i < list.Count; i += nSize)
+            {
+                yield return list.GetRange(i, Math.Min(nSize, list.Count - i));
+            }
         }
 
         private static ConsoleColor GetTypeConsoleColor(MessageType type) => type switch
@@ -73,30 +92,28 @@ namespace Jpp.Etl.Service
                 MessageType.Info => ConsoleColor.White,
                 _ => ConsoleColor.White
             };
-        
 
-        private static async void StartTask(Type type)
+        private static async Task StartTaskAsync(Type type)
         {
             try
             {
                 WriteMessage($"Starting {type.FullName}.");
 
-                var instance = (IScheduledTask) Container.Resolve(type);
-                /* TODO: This shouldnt be awaited.
-                 * You dont care when it completes and its blocking
-                 */
-                await instance.Start();
+                var instance = (IScheduledTask)Container.Resolve(type);
+                await instance.StartAsync();
             }
-            /* TODO: Why are we throwing an exception?
-             * rather than just gracefully returning from the awaited task ?
-             */
             catch (OperationCanceledException)
             {
+                /* TODO: Why are we throwing an exception?
+                 * rather than just gracefully returning from the awaited task ?
+                 */
             }
             finally
             {
-                if (Container.Resolve<CancellationTokenSource>().IsCancellationRequested) 
+                if (Container.Resolve<CancellationTokenSource>().IsCancellationRequested)
+                {
                     WriteMessage($"Cancelling {type.FullName}.");
+                }
             }
         }
 
@@ -108,20 +125,15 @@ namespace Jpp.Etl.Service
 
         private static void Stop()
         {
-            //TODO: review cancel request
+            // TODO: review cancel request
             var source = Container.Resolve<CancellationTokenSource>();
-            if (source == null) return;
+            if (source == null)
+            {
+                return;
+            }
 
             source.Token.ThrowIfCancellationRequested();
             source.Cancel();
-        }
-
-        public static IEnumerable<List<T>> SplitList<T>(List<T> list, int nSize)
-        {
-            for (var i = 0; i < list.Count; i += nSize)
-            {
-                yield return list.GetRange(i, Math.Min(nSize, list.Count - i));
-            }
         }
 
         private static IConfiguration CreateConfiguration()

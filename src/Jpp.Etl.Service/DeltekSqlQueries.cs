@@ -1,4 +1,8 @@
-﻿using System;
+﻿// <copyright file="DeltekSqlQueries.cs" company="JPP Consulting">
+// Copyright (c) JPP Consulting. All rights reserved.
+// </copyright>
+
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -13,13 +17,12 @@ namespace Jpp.Etl.Service
 
         public DeltekSqlQueries(IConfiguration config)
         {
-            configuration = config;
+            this.configuration = config;
         }
-
 
         public List<Project> ProjectsModifiedSince(DateTime dateTime)
         {
-            var connStr = configuration["CONNECTION_STRING"];
+            var connStr = this.configuration["CONNECTION_STRING"];
             if (string.IsNullOrEmpty(connStr))
             {
                 throw new ArgumentNullException(nameof(connStr));
@@ -33,14 +36,18 @@ namespace Jpp.Etl.Service
 
             command.Parameters.Add("@minimum", SqlDbType.DateTime).Value = Project.MinimumDateTime.ToString("s");
             command.Parameters.Add("@modified", SqlDbType.DateTime).Value = dateTime.ToString("s");
-            command.CommandText = "SELECT * FROM EXVW_Project_Data WHERE Project_Code LIKE '[0-9]%' AND ISNULL(Last_Update_Time, @minimum) >= @modified"; 
+            command.CommandText = "SELECT * FROM EXVW_Project_Data WHERE Project_Code LIKE '[0-9]%' AND ISNULL(Last_Update_Time, @minimum) >= @modified";
 
             var adapter = new SqlDataAdapter { SelectCommand = command };
             adapter.Fill(dataSet);
 
             foreach (DataRow? row in dataSet.Tables[0].Rows)
             {
-                if (row is null) continue;
+                if (row is null)
+                {
+                    continue;
+                }
+
                 list.Add(new Project(row));
             }
 
