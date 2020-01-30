@@ -5,18 +5,16 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
 
 namespace Jpp.Etl.Service.Projects
 {
-    internal class DeltekProjectTask : IScheduledTask
+    internal class DeltekProjectTask : CommonBase<DeltekProjectTask>, IScheduledTask
     {
-        private readonly IConfiguration configuration;
         private readonly DeltekProjectImporter importer;
 
-        public DeltekProjectTask(IConfiguration configuration, DeltekProjectImporter importer)
+        public DeltekProjectTask(CommonServices<DeltekProjectTask> commonServices, DeltekProjectImporter importer)
+            : base(commonServices)
         {
-            this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             this.importer = importer ?? throw new ArgumentNullException(nameof(importer));
         }
 
@@ -34,7 +32,7 @@ namespace Jpp.Etl.Service.Projects
         private int GetIntervalMinutes()
         {
             var intervalMinutes = 5;
-            if (int.TryParse(this.configuration["PROJECTS_INTERVAL_MINUTES"], out var parsedResult))
+            if (int.TryParse(this.GetConfiguration("PROJECTS_INTERVAL_MINUTES"), out var parsedResult))
             {
                 intervalMinutes = parsedResult;
             }

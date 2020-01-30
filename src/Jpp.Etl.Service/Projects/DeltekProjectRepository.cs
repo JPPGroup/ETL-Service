@@ -6,20 +6,14 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 
 namespace Jpp.Etl.Service.Projects
 {
-    internal class DeltekProjectRepository
+    internal class DeltekProjectRepository : CommonBase<DeltekProjectRepository>
     {
-        private readonly ILogger logger;
-        private readonly IConfiguration configuration;
-
-        public DeltekProjectRepository(ILogger logger, IConfiguration configuration)
+        public DeltekProjectRepository(CommonServices<DeltekProjectRepository> commonServices)
+            : base(commonServices)
         {
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
         public List<DeltekProject> GetProjectList(DateTimeOffset modifiedSince)
@@ -30,25 +24,9 @@ namespace Jpp.Etl.Service.Projects
             }
             catch (SqlException ex)
             {
-                this.logger.LogError(ex, "Unable to get projects.");
+                this.LogError(ex, "Unable to get projects.");
                 return new List<DeltekProject>();
             }
-        }
-
-        private List<DeltekProject> GetProjectsModifiedSince(DateTimeOffset modifiedSince)
-        {
-            var connStr = this.configuration["DELTEK_CONN_STR"];
-
-            using var connection = new SqlConnection(connStr);
-            var command = CreateProjectListSqlCommand(modifiedSince);
-            command.Connection = connection;
-
-            var dataSet = new DataSet("Projects");
-
-            var adapter = new SqlDataAdapter { SelectCommand = command };
-            adapter.Fill(dataSet);
-
-            return BuildProjectList(dataSet);
         }
 
         private static SqlCommand CreateProjectListSqlCommand(DateTimeOffset modifiedSince)
@@ -75,6 +53,22 @@ namespace Jpp.Etl.Service.Projects
             }
 
             return list;
+        }
+
+        private List<DeltekProject> GetProjectsModifiedSince(DateTimeOffset modifiedSince)
+        {
+            var connStr = this.GetConfiguration("DELTEK_CONN_STR");
+
+            using var connection = new SqlConnection(connStr);
+            var command = CreateProjectListSqlCommand(modifiedSince);
+            command.Connection = connection;
+
+            var dataSet = new DataSet("Projects");
+
+            var adapter = new SqlDataAdapter { SelectCommand = command };
+            adapter.Fill(dataSet);
+
+            return BuildProjectList(dataSet);
         }
     }
 }

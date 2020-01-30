@@ -6,20 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 
 namespace Jpp.Etl.Service.Projects
 {
-    internal class DeltekProjectImporter
+    internal class DeltekProjectImporter : CommonBase<DeltekProjectImporter>
     {
-        private readonly ILogger logger;
         private readonly DeltekProjectService service;
 
         private DateTimeOffset? lastCompletedImport;
 
-        public DeltekProjectImporter(ILogger logger, DeltekProjectService service)
+        public DeltekProjectImporter(CommonServices<DeltekProjectImporter> commonServices, DeltekProjectService service)
+            : base(commonServices)
         {
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.service = service ?? throw new ArgumentNullException(nameof(service));
         }
 
@@ -27,8 +25,8 @@ namespace Jpp.Etl.Service.Projects
         {
             var started = DateTimeOffset.Now;
 
-            await this.SetLastImportAsync();
-            if (cancellationToken.IsCancellationRequested)
+            var isDateSet = await this.SetLastImportAsync();
+            if (!isDateSet || cancellationToken.IsCancellationRequested)
             {
                 return;
             }
@@ -46,36 +44,40 @@ namespace Jpp.Etl.Service.Projects
         {
             if (projects.Count > 0)
             {
-                this.logger.LogInformation($"Projects found : {projects.Count}. Attempting to import.");
+                this.LogInformation($"Projects found : {projects.Count}. Attempting to import.");
                 await this.ImportProjectsAsync(projects, started);
             }
             else
             {
-                this.logger.LogInformation("No projects found.");
+                this.LogInformation("No projects found.");
             }
         }
 
-        private async Task SetLastImportAsync()
+        private async Task<bool> SetLastImportAsync()
         {
             if (!this.lastCompletedImport.HasValue)
             {
                 this.lastCompletedImport = await this.service.GetLastImportAsync();
                 if (!this.lastCompletedImport.HasValue)
                 {
-                    this.logger.LogWarning("No last import date time set.");
+                    this.LogWarning("No last import date time set.");
+                    return false;
                 }
             }
+
+            return true;
         }
 
         private async Task<List<DeltekProject>> GetProjectsAsync()
         {
             if (this.lastCompletedImport.HasValue)
             {
-                this.logger.LogInformation($"Finding projects modified since {this.lastCompletedImport}.");
-                return await this.service.GetProjectsAsync(this.lastCompletedImport.Value);
+                var lastRun = this.lastCompletedImport.Value;
+                this.LogInformation($"Finding projects modified since {lastRun}.");
+                return await this.service.GetProjectsAsync(lastRun);
             }
 
-            this.logger.LogWarning("Last run not set.");
+            this.LogWarning("Last run not set.");
             return new List<DeltekProject>();
         }
 
@@ -85,12 +87,12 @@ namespace Jpp.Etl.Service.Projects
 
             if (result)
             {
-                this.logger.LogInformation("Projects import successful.");
+                this.LogInformation("Projects import successful.");
                 this.lastCompletedImport = started;
             }
             else
             {
-                this.logger.LogWarning("Projects import failed.");
+                this.LogWarning("Projects import failed.");
             }
         }
     }

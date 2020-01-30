@@ -11,22 +11,17 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using IdentityModel.Client;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Jpp.Etl.Service.Projects
 {
-    internal class DeltekProjectService
+    internal class DeltekProjectService : CommonBase<DeltekProjectService>
     {
-        private readonly ILogger logger;
-        private readonly IConfiguration configuration;
         private readonly DeltekProjectRepository repository;
 
-        public DeltekProjectService(ILogger logger, IConfiguration configuration, DeltekProjectRepository repository)
+        public DeltekProjectService(CommonServices<DeltekProjectService> commonServices, DeltekProjectRepository repository)
+            : base(commonServices)
         {
-            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             this.repository = repository ?? throw new ArgumentNullException(nameof(repository));
         }
 
@@ -107,7 +102,7 @@ namespace Jpp.Etl.Service.Projects
 
                 if (response.IsError)
                 {
-                    this.logger.LogError("Failed to create authenticated client.");
+                    this.LogError("Failed to create authenticated client.");
                     return null;
                 }
 
@@ -147,7 +142,7 @@ namespace Jpp.Etl.Service.Projects
 
         private HttpRequestMessage GetLastImportRequestMessage()
         {
-            var builder = this.GetUriBuilder(this.configuration["API_END_POINT_PROJECT_IMPORT_DELTEK"]);
+            var builder = this.GetUriBuilder(this.GetConfiguration("API_END_POINT_PROJECT_IMPORT_DELTEK"));
 
             return new HttpRequestMessage
             {
@@ -158,26 +153,26 @@ namespace Jpp.Etl.Service.Projects
 
         private HttpRequestMessage GetImportSuccessRequestMessage(DateTimeOffset started)
         {
-            var builder = this.GetUriBuilder(this.configuration["API_END_POINT_PROJECT_IMPORT_DELTEK"]);
+            var builder = this.GetUriBuilder(this.GetConfiguration("API_END_POINT_PROJECT_IMPORT_DELTEK"));
             var json = JsonConvert.SerializeObject(started.UtcDateTime);
             return CreatePostRequestMessage(json, builder.Uri);
         }
 
         private HttpRequestMessage GetImportProjectsRequestMessage(List<DeltekProject> list)
         {
-            var builder = this.GetUriBuilder(this.configuration["API_END_POINT_PROJECT_IMPORT"]);
+            var builder = this.GetUriBuilder(this.GetConfiguration("API_END_POINT_PROJECT_IMPORT"));
             var json = JsonConvert.SerializeObject(list);
             return CreatePostRequestMessage(json, builder.Uri);
         }
 
         private ClientCredentialsTokenRequest GetClientTokenRequest()
         {
-            var builder = this.GetUriBuilder(this.configuration["API_END_POINT_TOKEN"]);
+            var builder = this.GetUriBuilder(this.GetConfiguration("API_END_POINT_TOKEN"));
             return new ClientCredentialsTokenRequest
             {
                 Address = builder.Uri.ToString(),
-                ClientId = this.configuration["CLIENT_ID"],
-                ClientSecret = this.configuration["CLIENT_SECRET"],
+                ClientId = this.GetConfiguration("CLIENT_ID"),
+                ClientSecret = this.GetConfiguration("CLIENT_SECRET"),
             };
         }
 
@@ -185,9 +180,9 @@ namespace Jpp.Etl.Service.Projects
         {
             var builder = new UriBuilder
             {
-                Scheme = this.configuration["API_BASE_URI_SCHEME"],
-                Host = this.configuration["API_BASE_URI_HOST"],
-                Port = int.Parse(this.configuration["API_BASE_URI_PORT"]),
+                Scheme = this.GetConfiguration("API_BASE_URI_SCHEME"),
+                Host = this.GetConfiguration("API_BASE_URI_HOST"),
+                Port = int.Parse(this.GetConfiguration("API_BASE_URI_PORT")),
                 Path = path,
             };
 
@@ -202,7 +197,7 @@ namespace Jpp.Etl.Service.Projects
         private int GetPartitionSize()
         {
             var partitionSize = 5;
-            if (int.TryParse(this.configuration["PROJECTS_PARTITION_SIZE"], out var parsedResult))
+            if (int.TryParse(this.GetConfiguration("PROJECTS_PARTITION_SIZE"), out var parsedResult))
             {
                 partitionSize = parsedResult;
             }
@@ -213,7 +208,7 @@ namespace Jpp.Etl.Service.Projects
         private bool GetUseAuth()
         {
             var useAuth = true;
-            if (bool.TryParse(this.configuration["PROJECTS_USE_AUTHENTICATION"], out var parsedResult))
+            if (bool.TryParse(this.GetConfiguration("PROJECTS_USE_AUTHENTICATION"), out var parsedResult))
             {
                 useAuth = parsedResult;
             }

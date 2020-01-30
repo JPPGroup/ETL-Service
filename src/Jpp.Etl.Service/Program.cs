@@ -10,6 +10,7 @@ using System.Threading;
 using CommandLine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using Unity;
 using Unity.Microsoft.Logging;
 
@@ -74,7 +75,7 @@ namespace Jpp.Etl.Service
                         builder.SetMinimumLevel(LogLevel.Warning);
                     }
                 });
-                builder.AddConsole();
+                builder.AddConsole(options => options.Format = ConsoleLoggerFormat.Default);
             });
             return loggerFactory;
         }
