@@ -8,22 +8,24 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Security.Authentication;
 using System.Text;
 using System.Threading.Tasks;
 using IdentityModel.Client;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
 namespace Jpp.Etl.Service.Projects
 {
     internal class DeltekProjectService
     {
+        private readonly ILogger logger;
         private readonly IConfiguration configuration;
         private readonly DeltekProjectRepository repository;
 
-        public DeltekProjectService(IConfiguration configuration, DeltekProjectRepository repository)
+        public DeltekProjectService(ILogger logger, IConfiguration configuration, DeltekProjectRepository repository)
         {
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
             this.repository = repository ?? throw new ArgumentNullException(nameof(repository));
         }
@@ -35,6 +37,11 @@ namespace Jpp.Etl.Service.Projects
         public async Task<DateTime?> GetLastImportAsync()
         {
             var client = await this.CreateAuthenticateHttpClientAsync();
+            if (client == null)
+            {
+                return null;
+            }
+
             var response = await client.SendAsync(this.GetLastImportRequestMessage());
 
             var result = await response.Content.ReadAsStringAsync();
@@ -54,6 +61,11 @@ namespace Jpp.Etl.Service.Projects
         public async Task<bool> ImportProjectsAsync(List<DeltekProject> projects, DateTimeOffset started)
         {
             var client = await this.CreateAuthenticateHttpClientAsync();
+            if (client == null)
+            {
+                return false;
+            }
+
             var partitions = this.SplitList(projects).ToList();
 
             if (this.ImportProjectPartitions(client, partitions))
@@ -85,7 +97,7 @@ namespace Jpp.Etl.Service.Projects
             };
         }
 
-        private async Task<HttpClient> CreateAuthenticateHttpClientAsync()
+        private async Task<HttpClient?> CreateAuthenticateHttpClientAsync()
         {
             var client = CreateHttpClient();
 
@@ -95,7 +107,8 @@ namespace Jpp.Etl.Service.Projects
 
                 if (response.IsError)
                 {
-                    throw new AuthenticationException(response.Error);
+                    this.logger.LogError("Failed to create authenticated client.");
+                    return null;
                 }
 
                 var token = response.AccessToken;

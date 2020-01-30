@@ -26,7 +26,7 @@ namespace Jpp.Etl.Service.Projects
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                await this.importer.DoScanAndImportAsync();
+                await this.importer.DoScanAndImportAsync(cancellationToken);
                 await Task.Delay(TimeSpan.FromMinutes(this.IntervalMinutes), cancellationToken);
             }
         }

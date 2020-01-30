@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using CommandLine;
 using Microsoft.Extensions.Configuration;
@@ -14,6 +15,12 @@ using Unity.Microsoft.Logging;
 
 namespace Jpp.Etl.Service
 {
+    /// <summary>
+    /// Console program from executing long running/schduled tasks.
+    ///
+    /// NB: currently intentionally not multi thread. Any scheduled task that aren't fully asynchronous will block.
+    /// As and when multi threading is implemented, manual stop/start/restart of tasks needs so to be implemented.
+    /// </summary>
     internal class Program
     {
         private static readonly IUnityContainer Container = new UnityContainer();
@@ -25,8 +32,7 @@ namespace Jpp.Etl.Service
             Container.RegisterInstance(CreateConfiguration());
             Container.AddExtension(new LoggingExtension(loggerFactory));
 
-            var tasks = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(x => x.GetTypes())
+            var tasks = Assembly.GetExecutingAssembly().GetTypes()
                 .Where(x => typeof(IScheduledTask).IsAssignableFrom(x) && !x.IsInterface && !x.IsAbstract);
 
             StartTasks(tasks);

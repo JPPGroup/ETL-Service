@@ -4,8 +4,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
-using System.Security.Authentication;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -13,26 +12,38 @@ namespace Jpp.Etl.Service.Projects
 {
     internal class DeltekProjectImporter
     {
-        private readonly ILogger<DeltekProjectImporter> logger;
+        private readonly ILogger logger;
         private readonly DeltekProjectService service;
 
         private DateTimeOffset? lastCompletedImport;
 
-        public DeltekProjectImporter(ILogger<DeltekProjectImporter> logger, DeltekProjectService service)
+        public DeltekProjectImporter(ILogger logger, DeltekProjectService service)
         {
             this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.service = service ?? throw new ArgumentNullException(nameof(service));
         }
 
-        public async Task DoScanAndImportAsync()
+        public async Task DoScanAndImportAsync(CancellationToken cancellationToken)
         {
             var started = DateTimeOffset.Now;
 
             await this.SetLastImportAsync();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
 
-            this.logger.LogInformation($"Finding projects modified since {this.lastCompletedImport}.");
             var projects = await this.GetProjectsAsync();
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
 
+            await this.DoProjectsImportAsync(projects, started);
+        }
+
+        private async Task DoProjectsImportAsync(List<DeltekProject> projects, DateTimeOffset started)
+        {
             if (projects.Count > 0)
             {
                 this.logger.LogInformation($"Projects found : {projects.Count}. Attempting to import.");
@@ -48,7 +59,7 @@ namespace Jpp.Etl.Service.Projects
         {
             if (!this.lastCompletedImport.HasValue)
             {
-                this.lastCompletedImport = await this.TryGetLastImportAsync();
+                this.lastCompletedImport = await this.service.GetLastImportAsync();
                 if (!this.lastCompletedImport.HasValue)
                 {
                     this.logger.LogWarning("No last import date time set.");
@@ -56,48 +67,21 @@ namespace Jpp.Etl.Service.Projects
             }
         }
 
-        private async Task<DateTime?> TryGetLastImportAsync()
-        {
-            try
-            {
-                return await this.service.GetLastImportAsync();
-            }
-            catch (AuthenticationException authException)
-            {
-                this.logger.LogError(authException, "Failed Auth GetLastImportAsync.");
-                return null;
-            }
-        }
-
         private async Task<List<DeltekProject>> GetProjectsAsync()
         {
             if (this.lastCompletedImport.HasValue)
             {
-                return await this.TryGetProjectsAsync(this.lastCompletedImport.Value);
+                this.logger.LogInformation($"Finding projects modified since {this.lastCompletedImport}.");
+                return await this.service.GetProjectsAsync(this.lastCompletedImport.Value);
             }
 
             this.logger.LogWarning("Last run not set.");
             return new List<DeltekProject>();
         }
 
-        private async Task<List<DeltekProject>> TryGetProjectsAsync(DateTimeOffset modifiedDate)
-        {
-            var list = new List<DeltekProject>();
-            try
-            {
-                list = await this.service.GetProjectsAsync(modifiedDate);
-            }
-            catch (SqlException ex)
-            {
-                this.logger.LogError(ex, "Unable to get projects.");
-            }
-
-            return list;
-        }
-
         private async Task ImportProjectsAsync(List<DeltekProject> projects, DateTimeOffset started)
         {
-            var result = await this.TryImportProjectsAsync(projects, started);
+            var result = await this.service.ImportProjectsAsync(projects, started);
 
             if (result)
             {
@@ -107,19 +91,6 @@ namespace Jpp.Etl.Service.Projects
             else
             {
                 this.logger.LogWarning("Projects import failed.");
-            }
-        }
-
-        private async Task<bool> TryImportProjectsAsync(List<DeltekProject> projects, DateTimeOffset started)
-        {
-            try
-            {
-                return await this.service.ImportProjectsAsync(projects, started);
-            }
-            catch (AuthenticationException authException)
-            {
-                this.logger.LogError(authException, "Failed Auth GetLastImportAsync.");
-                return false;
             }
         }
     }

@@ -5,21 +5,37 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace Jpp.Etl.Service.Projects
 {
     internal class DeltekProjectRepository
     {
+        private readonly ILogger logger;
         private readonly IConfiguration configuration;
 
-        public DeltekProjectRepository(IConfiguration configuration)
+        public DeltekProjectRepository(ILogger logger, IConfiguration configuration)
         {
+            this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
             this.configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         }
 
         public List<DeltekProject> GetProjectList(DateTimeOffset modifiedSince)
+        {
+            try
+            {
+                return this.GetProjectsModifiedSince(modifiedSince);
+            }
+            catch (SqlException ex)
+            {
+                this.logger.LogError(ex, "Unable to get projects.");
+                return new List<DeltekProject>();
+            }
+        }
+
+        private List<DeltekProject> GetProjectsModifiedSince(DateTimeOffset modifiedSince)
         {
             var connStr = this.configuration["DELTEK_CONN_STR"];
 

@@ -16,5 +16,13 @@
             <param name="cancellationToken">Cancellation token.</param>
             <returns>A <see cref="T:System.Threading.Tasks.Task"/> representing the result of the asynchronous operation.</returns>
         </member>
+        <member name="T:Jpp.Etl.Service.Program">
+             <summary>
+             Console program from executing long running/schduled tasks.
+            
+             NB: currently intentionally not multi thread. Any scheduled task that aren't fully asynchronous will block.
+             As and when multi threading is implemented, manual stop/start/restart of tasks needs so to be implemented.
+             </summary>
+        </member>
     </members>
 </doc>
