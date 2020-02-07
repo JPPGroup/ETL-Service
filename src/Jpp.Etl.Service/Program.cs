@@ -52,6 +52,8 @@ namespace Jpp.Etl.Service
 
         private static void StartTask(Type type, CancellationToken cancellationToken)
         {
+            Container.Resolve<Logger<Program>>().LogInformation($"Starting {type.FullName}.");
+
             var instance = (IScheduledTask)Container.Resolve(type);
             instance.ExecuteAsync(cancellationToken).ConfigureAwait(false);
         }
