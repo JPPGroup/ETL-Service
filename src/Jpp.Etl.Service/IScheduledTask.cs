@@ -2,6 +2,7 @@
 // Copyright (c) JPP Consulting. All rights reserved.
 // </copyright>
 
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Jpp.Etl.Service
@@ -12,9 +13,10 @@ namespace Jpp.Etl.Service
     internal interface IScheduledTask
     {
         /// <summary>
-        /// Start the task.
+        /// Execute task.
         /// </summary>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>A <see cref="Task"/> representing the result of the asynchronous operation.</returns>
-        Task StartAsync();
+        Task ExecuteAsync(CancellationToken cancellationToken);
     }
 }
